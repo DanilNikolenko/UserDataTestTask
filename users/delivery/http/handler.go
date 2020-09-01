@@ -1,10 +1,13 @@
 package http
 
 import (
+	"UserDataTestTask/models"
 	"UserDataTestTask/users"
+	"encoding/json"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"net/http"
+	"strconv"
 )
 
 type Handler struct {
@@ -18,6 +21,18 @@ func NewHandler(useCase users.UseCase) *Handler {
 }
 
 func (h *Handler) GetUsersHandler(c echo.Context) error {
+
+	_, err := strconv.Atoi(c.QueryParam("limit"))
+	if err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+	}
+	_, err = strconv.Atoi(c.QueryParam("offset"))
+	if err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+	}
+
 	myUsers, err := h.useCase.GetUsers(c)
 	if err != nil {
 		log.Error(err)
@@ -27,7 +42,24 @@ func (h *Handler) GetUsersHandler(c echo.Context) error {
 }
 
 func (h *Handler) AddUserHandler(c echo.Context) error {
-	user, err := h.useCase.AddUser(c)
+	userBSON := models.User{}
+
+	// Decode request
+	err := json.NewDecoder(c.Request().Body).Decode(&userBSON)
+	if err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+	}
+
+	// close BODY req
+	defer func() {
+		err = c.Request().Body.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+
+	user, err := h.useCase.AddUser(c, &userBSON)
 	if err != nil {
 		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
@@ -36,7 +68,24 @@ func (h *Handler) AddUserHandler(c echo.Context) error {
 }
 
 func (h *Handler) UpdateUserHandler(c echo.Context) error {
-	user, err := h.useCase.UpdateUser(c)
+	pushUser := models.User{}
+
+	// decode request
+	err := json.NewDecoder(c.Request().Body).Decode(&pushUser)
+	if err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+	}
+
+	// close BODY req
+	defer func() {
+		err = c.Request().Body.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+
+	user, err := h.useCase.UpdateUser(c, &pushUser)
 	if err != nil {
 		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)

@@ -1,31 +1,16 @@
 package main
 
 import (
+	"UserDataTestTask/models"
 	"UserDataTestTask/services"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/gommon/log"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"io/ioutil"
 )
-
-type UserJSON struct {
-	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Email     string             `json:"email,omitempty" bson:"email"`
-	LastName  string             `json:"last_name,omitempty" bson:"lastName"`
-	Country   string             `json:"country,omitempty" bson:"country"`
-	City      string             `json:"city,omitempty" bson:"city"`
-	Gender    string             `json:"gender,omitempty" bson:"gender"`
-	BirthDate string             `json:"birth_date,omitempty" bson:"birthDate"`
-}
-
-type DataJson struct {
-	// !!! Necessarily use name with first BIG letter (for json marshal, unmarshal) !!!
-	Objects []UserJSON `json:"objects"`
-}
 
 func main() {
 	cl := services.ConnToMongo()
@@ -54,8 +39,8 @@ func MigrateUsers(r *mongo.Collection) error {
 	//fmt.Println("Delete: ", del.DeletedCount)
 
 	// read .json
-	data := DataJson{
-		[]UserJSON{},
+	data := models.DataJson{
+		[]models.User{},
 	}
 
 	file, err := ioutil.ReadFile("db/migrations/users.json")

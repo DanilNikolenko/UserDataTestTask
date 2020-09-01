@@ -3,31 +3,16 @@ package mongodb
 import (
 	"UserDataTestTask/models"
 	"context"
-	"encoding/json"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"strconv"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-type UserJSON struct {
-	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Email     string             `json:"email,omitempty" bson:"email"`
-	LastName  string             `json:"last_name,omitempty" bson:"lastName"`
-	Country   string             `json:"country,omitempty" bson:"country"`
-	City      string             `json:"city,omitempty" bson:"city"`
-	Gender    string             `json:"gender,omitempty" bson:"gender"`
-	BirthDate string             `json:"birth_date,omitempty" bson:"birthDate"`
-}
-
-type DataJson struct {
-	// !!! Necessarily use name with first BIG letter (for json marshal, unmarshal) !!!
-	Objects []UserJSON `json:"objects"`
-}
 
 type MongoStorage struct {
 	Users *mongo.Collection
@@ -45,15 +30,7 @@ func (r *MongoStorage) GetUsersFromDB(c echo.Context) (*[]models.User, error) {
 	rez := []models.User{}
 
 	limit, err := strconv.Atoi(c.QueryParam("limit"))
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
 	offset, err := strconv.Atoi(c.QueryParam("offset"))
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
 
 	lim64 := int64(limit)
 	offset64 := int64(offset)
@@ -79,20 +56,12 @@ func (r *MongoStorage) GetUsersFromDB(c echo.Context) (*[]models.User, error) {
 
 	// parse all
 	for cursor.Next(context.TODO()) {
-		var episode UserJSON
+		var episode models.User
 		if err = cursor.Decode(&episode); err != nil {
 			log.Error(err)
 		}
-		temp := models.User{
-			ID:        episode.ID,
-			Email:     episode.Email,
-			LastName:  episode.LastName,
-			Country:   episode.Country,
-			City:      episode.City,
-			Gender:    episode.Gender,
-			BirthDate: episode.BirthDate,
-		}
-		rez = append(rez, temp)
+
+		rez = append(rez, episode)
 	}
 
 	// ---------------Find many
@@ -100,90 +69,58 @@ func (r *MongoStorage) GetUsersFromDB(c echo.Context) (*[]models.User, error) {
 	return &rez, nil
 }
 
-func (r *MongoStorage) AddUserToDB(c echo.Context) (*models.User, error) {
-	u := UserJSON{}
-
-	// Decode request
-	err := json.NewDecoder(c.Request().Body).Decode(&u)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	// close BODY req
-	defer func() {
-		err = c.Request().Body.Close()
-		if err != nil {
-			log.Error(err)
-		}
-	}()
+func (r *MongoStorage) AddUserToDB(c echo.Context, user *models.User) (*models.User, error) {
 
 	// insert to the collection one document
-	rezInsert, err := r.Users.InsertOne(context.TODO(), u)
+	InsertedUser, err := r.Users.InsertOne(context.TODO(), user)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	// RETURN USER
 	rezUser := models.User{
-		ID:        rezInsert.InsertedID.(primitive.ObjectID),
-		Email:     u.Email,
-		LastName:  u.LastName,
-		Country:   u.Country,
-		City:      u.City,
-		Gender:    u.Gender,
-		BirthDate: u.BirthDate,
+		ID:        InsertedUser.InsertedID.(primitive.ObjectID),
+		Email:     user.Email,
+		LastName:  user.LastName,
+		Country:   user.Country,
+		City:      user.City,
+		Gender:    user.Gender,
+		BirthDate: user.BirthDate,
 	}
 
 	return &rezUser, nil
 }
 
-func (r *MongoStorage) UpdateUserInDB(c echo.Context) (*models.User, error) {
-	user := UserJSON{}
-
-	// decode request
-	err := json.NewDecoder(c.Request().Body).Decode(&user)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	// close BODY req
-	defer func() {
-		err = c.Request().Body.Close()
-		if err != nil {
-			log.Error(err)
-		}
-	}()
+func (r *MongoStorage) UpdateUserInDB(c echo.Context, user *models.User) (*models.User, error) {
 
 	// made filter for update one
 	filter := bson.D{{"_id", user.ID}}
 
 	// find user by id
-	mongoUser := UserJSON{}
-	err = r.Users.FindOne(context.TODO(), filter).Decode(&mongoUser)
+	mongoUser := models.User{}
+	err := r.Users.FindOne(context.TODO(), filter).Decode(&mongoUser)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
-	if user.Email != "" {
+	if strings.TrimSpace(user.Email) != "" {
 		mongoUser.Email = user.Email
 	}
-	if user.LastName != "" {
+	if strings.TrimSpace(user.LastName) != "" {
 		mongoUser.LastName = user.LastName
 	}
-	if user.Country != "" {
+	if strings.TrimSpace(user.Country) != "" {
 		mongoUser.Country = user.Country
 	}
-	if user.City != "" {
+	if strings.TrimSpace(user.City) != "" {
 		mongoUser.City = user.City
 	}
-	if user.Gender != "" {
+	if strings.TrimSpace(user.Gender) != "" {
 		mongoUser.Gender = user.Gender
 	}
-	if user.BirthDate != "" {
+	if strings.TrimSpace(user.BirthDate) != "" {
 		mongoUser.BirthDate = user.BirthDate
 	}
 
@@ -204,16 +141,5 @@ func (r *MongoStorage) UpdateUserInDB(c echo.Context) (*models.User, error) {
 		return nil, err
 	}
 
-	// RETURN USER
-	rezUser := models.User{
-		ID:        mongoUser.ID,
-		Email:     mongoUser.Email,
-		LastName:  mongoUser.LastName,
-		Country:   mongoUser.Country,
-		City:      mongoUser.City,
-		Gender:    mongoUser.Gender,
-		BirthDate: mongoUser.BirthDate,
-	}
-
-	return &rezUser, nil
+	return &mongoUser, nil
 }

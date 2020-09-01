@@ -26,8 +26,8 @@ func (r *UsersUseCase) GetUsers(c echo.Context) (*[]models.User, error) {
 	return myUsers, nil
 }
 
-func (r *UsersUseCase) AddUser(c echo.Context) (*models.User, error) {
-	user, err := r.UsersStorage.AddUserToDB(c)
+func (r *UsersUseCase) AddUser(c echo.Context, user *models.User) (*models.User, error) {
+	user, err := r.UsersStorage.AddUserToDB(c, user)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -35,8 +35,8 @@ func (r *UsersUseCase) AddUser(c echo.Context) (*models.User, error) {
 	return user, nil
 }
 
-func (r *UsersUseCase) UpdateUser(c echo.Context) (*models.User, error) {
-	user, err := r.UsersStorage.UpdateUserInDB(c)
+func (r *UsersUseCase) UpdateUser(c echo.Context, user *models.User) (*models.User, error) {
+	user, err := r.UsersStorage.UpdateUserInDB(c, user)
 	if err != nil {
 		log.Error(err)
 		return nil, err
